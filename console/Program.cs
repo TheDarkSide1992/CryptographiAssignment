@@ -4,9 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 
-bool isRunnig = false;
-
-Encryption();
+bool isRunnig = true;
 
 while (isRunnig)
 {
@@ -19,10 +17,10 @@ while (isRunnig)
     switch (mode)
     {
         case "1":
-            hexEncoding();
+            Encryption();
             break;
         case "2":
-            Console.WriteLine("reading \n");
+            readFromFile();
             break;
         case "3":
             Console.WriteLine("goodbye have a nice day. \n");
@@ -35,26 +33,6 @@ while (isRunnig)
 }
 
 
-//--------------------
-void hexEncoding()
-{
-    Console.WriteLine("\n-----------------------------------------------------------\n");
-    Console.WriteLine("Hello :--) Please enter the text you want to see encoded");
-    string? enteredText = Console.ReadLine();
-
-
-    Console.WriteLine("toHexString");
-
-    byte[] binary = Encoding.UTF8.GetBytes(enteredText);
-
-    SoutEcrypted(binary);
-
-    string text = Encoding.UTF8.GetString(binary);
-
-    SoutDecrypted(text);
-
-}
-
 void Encryption()
 {
     Console.WriteLine("\n-----------------------------------------------------------\n");
@@ -62,14 +40,13 @@ void Encryption()
     string? enteredText = Console.ReadLine();
     
     
-    // generate a key
+    // generate a slat
     var salt = new byte[32];
     RandomNumberGenerator.Fill(salt);
-
-    String password = getPassword();
     
+    //make key
     var key = KeyDerivation.Pbkdf2(
-        password: password!,
+        password: getPassword()!,
         salt: salt,
         prf: KeyDerivationPrf.HMACSHA256,
         iterationCount: 600000,
@@ -85,23 +62,24 @@ void Encryption()
     var tag = new byte[AesGcm.TagByteSizes.MaxSize]; // MaxSize = 16
     
     aes.Encrypt(nonce, plaintextBytes, ciphertext, tag);
-    
+
     SoutEcrypted(ciphertext);  //this should be removed
     
-    SoutDecrypted(Decrypt(ciphertext, nonce, tag, salt)); //this should be moved
+    try
+    {
+        saveToFile(ciphertext,nonce,tag,salt);
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine("ans error accused while saving file: \n" + e);
+    }
 }
 
-void Decrtypt()
-{
-    String password = getPassword();
-}
 
 string Decrypt(byte[] ciphertext, byte[] nonce, byte[] tag, byte[] salt)
 {
-    String password = getPassword();
-    
     var key = KeyDerivation.Pbkdf2(
-        password: password!,
+        password: getPassword()!,
         salt: salt,
         prf: KeyDerivationPrf.HMACSHA256,
         iterationCount: 600000,
@@ -117,6 +95,116 @@ string Decrypt(byte[] ciphertext, byte[] nonce, byte[] tag, byte[] salt)
     }
 }
 
+void saveToFile(byte[] ciphertext, byte[] nonce, byte[] tag, byte[] salt)
+{
+    string hexStringCipher = Convert.ToHexString(ciphertext);
+    string hexStringNonce = Convert.ToHexString(nonce);
+    string hexStringTag = Convert.ToHexString(tag);
+    string hexStringSalt = Convert.ToHexString(salt);
+    
+    
+    
+    /*
+    string fileName = String.Concat("Message.txt");
+
+
+    string docPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+    using (StreamWriter outputFile = new StreamWriter(Path.Combine(String.Concat("Message.txt")), true))
+    {
+        outputFile.WriteLine(hexStringCipher + "," + hexStringNonce + "," +
+                             hexStringTag + "," + hexStringSalt);
+    }
+    
+    File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + @"\" + "Message.txt", 
+        (hexStringCipher + "," + hexStringNonce + "," +  
+                             hexStringTag + "," + hexStringSalt));*/
+    
+    string filePath = "Message.txt";
+    string content = hexStringCipher + "," + hexStringNonce + "," +  
+                    hexStringTag + "," + hexStringSalt;
+
+    Console.WriteLine(content);
+    
+    File.WriteAllText(filePath, content);
+}
+
+/**
+ * Reads file and if theres data throughs data to the decrypt method.
+ */
+void readFromFile()
+{
+    try
+    {
+        string output = "";
+        // Open the text file using a stream reader.
+        using (var sr = new StreamReader(@"Message.txt"))
+        {
+            // Read the stream as a string, and write the string to the console.
+            output = sr.ReadToEnd();
+            
+        }
+
+        output.Replace("\r\n", "");
+        
+        
+        string[] list = output.Split(",");
+
+        byte[] ciphertext = new byte[] { };
+        byte[] nonce= new byte[] { };
+        byte[] tag= new byte[] { };
+        byte[] salt= new byte[] { };
+        
+        for (int i = 0; i <= list.Length; i++)
+        {
+
+            switch (i)
+            {
+                case 0:
+                    list[i].Replace(",", "");
+                    ciphertext = Convert.FromHexString(list[i]);
+                    break;
+                case 1:
+                    list[i].Replace(",", "");
+                    nonce = Convert.FromHexString(list[i]);
+                    break;
+                case 2:
+                    list[i].Replace(",", "");
+                    tag = Convert.FromHexString(list[i]);
+                    break;
+                case 3:
+                    list[i].Replace(",", "");
+                    salt = Convert.FromHexString(list[i]);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        if (ciphertext.Length < 5)
+        {
+            Console.WriteLine("No data to read");
+            return;
+        }
+
+        try
+        {
+            SoutDecrypted(Decrypt(ciphertext, nonce, tag, salt));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("an error accused: " + e);
+            throw;
+        }
+    }
+    catch (IOException e)
+    {
+        Console.WriteLine("The file could not be read: \n" + e);
+    }
+}
+
+/**
+ * gets the users password without showing it in the CLI.
+ */
 string getPassword()
 {
     Console.WriteLine("Enter Password:");
@@ -144,7 +232,9 @@ string getPassword()
     return thePassword;
 }
 
-
+/**
+ * prints byte array to Console
+ */
 void SoutEcrypted(byte[] encrypted)
 {
     Console.ForegroundColor = ConsoleColor.Yellow;
@@ -156,6 +246,9 @@ void SoutEcrypted(byte[] encrypted)
     Console.ResetColor();
 }
 
+/**
+ * prints string to console
+ */
 void SoutDecrypted(string decrypted)
 {
     Console.ForegroundColor = ConsoleColor.Blue;
