@@ -85,11 +85,36 @@ void Encryption()
     var tag = new byte[AesGcm.TagByteSizes.MaxSize]; // MaxSize = 16
     
     aes.Encrypt(nonce, plaintextBytes, ciphertext, tag);
+    
+    SoutEcrypted(ciphertext);  //this should be removed
+    
+    SoutDecrypted(Decrypt(ciphertext, nonce, tag, salt)); //this should be moved
 }
 
 void Decrtypt()
 {
     String password = getPassword();
+}
+
+string Decrypt(byte[] ciphertext, byte[] nonce, byte[] tag, byte[] salt)
+{
+    String password = getPassword();
+    
+    var key = KeyDerivation.Pbkdf2(
+        password: password!,
+        salt: salt,
+        prf: KeyDerivationPrf.HMACSHA256,
+        iterationCount: 600000,
+        numBytesRequested: 256 / 8);
+    
+    using (var aes = new AesGcm(key))
+    {
+        var plaintextBytes = new byte[ciphertext.Length];
+
+        aes.Decrypt(nonce, ciphertext, tag, plaintextBytes);
+
+        return Encoding.UTF8.GetString(plaintextBytes);
+    }
 }
 
 string getPassword()
