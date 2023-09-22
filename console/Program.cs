@@ -8,26 +8,32 @@ bool isRunnig = true;
 
 while (isRunnig)
 {
-    Console.WriteLine("\n \n-----------------------------------------\n");
+    Console.WriteLine("\n=============================================\n");
     Console.WriteLine("1. Encrypt a message");
     Console.WriteLine("2. read a message");
     Console.WriteLine("3. exit");
-    
+
     string? mode = Console.ReadLine();
     switch (mode)
     {
         case "1":
+            Console.WriteLine("\n=============================================\n");
             Encryption();
             break;
         case "2":
+            Console.WriteLine("\n=============================================\n");
             readFromFile();
             break;
         case "3":
+            Console.WriteLine("\n=============================================\n");
+            Console.ForegroundColor = ConsoleColor.Magenta;
             Console.WriteLine("goodbye have a nice day. \n");
+            Console.ResetColor();
             isRunnig = false;
             break;
         default:
-            Console.WriteLine("you didnt enter a number please try again");
+            Console.WriteLine("\n=============================================\n");
+            Console.WriteLine("you didnt enter a number valid please try again");
             break;
     }
 }
@@ -35,15 +41,14 @@ while (isRunnig)
 
 void Encryption()
 {
-    Console.WriteLine("\n-----------------------------------------------------------\n");
     Console.WriteLine("Hello :--) Please enter the text you want to see encrypted");
     string? enteredText = Console.ReadLine();
-    
-    
+
+
     // generate a slat
     var salt = new byte[32];
     RandomNumberGenerator.Fill(salt);
-    
+
     //make key
     var key = KeyDerivation.Pbkdf2(
         password: getPassword()!,
@@ -51,27 +56,41 @@ void Encryption()
         prf: KeyDerivationPrf.HMACSHA256,
         iterationCount: 600000,
         numBytesRequested: 256 / 8);
-    
+
     using var aes = new AesGcm(key);
-    
+
     var nonce = new byte[AesGcm.NonceByteSizes.MaxSize]; // MaxSize = 12
     RandomNumberGenerator.Fill(nonce);
 
     var plaintextBytes = Encoding.UTF8.GetBytes(enteredText);
     var ciphertext = new byte[plaintextBytes.Length];
     var tag = new byte[AesGcm.TagByteSizes.MaxSize]; // MaxSize = 16
-    
+
     aes.Encrypt(nonce, plaintextBytes, ciphertext, tag);
 
-    SoutEcrypted(ciphertext);  //this should be removed
-    
+    Console.WriteLine("\n=============================================\n");
+
+    SoutEcrypted(ciphertext); //this should be removed
+
+    Console.WriteLine("\n=============================================\n");
+
     try
     {
-        saveToFile(ciphertext,nonce,tag,salt);
+        saveToFile(ciphertext, nonce, tag, salt);
     }
     catch (Exception e)
     {
-        Console.WriteLine("ans error accused while saving file: \n" + e);
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("an error acoured when writing to file");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("=============================================");
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(e);
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("=============================================");
+            Console.ResetColor();
+        }
     }
 }
 
@@ -84,7 +103,7 @@ string Decrypt(byte[] ciphertext, byte[] nonce, byte[] tag, byte[] salt)
         prf: KeyDerivationPrf.HMACSHA256,
         iterationCount: 600000,
         numBytesRequested: 256 / 8);
-    
+
     using (var aes = new AesGcm(key))
     {
         var plaintextBytes = new byte[ciphertext.Length];
@@ -97,35 +116,58 @@ string Decrypt(byte[] ciphertext, byte[] nonce, byte[] tag, byte[] salt)
 
 void saveToFile(byte[] ciphertext, byte[] nonce, byte[] tag, byte[] salt)
 {
-    string hexStringCipher = Convert.ToHexString(ciphertext);
-    string hexStringNonce = Convert.ToHexString(nonce);
-    string hexStringTag = Convert.ToHexString(tag);
-    string hexStringSalt = Convert.ToHexString(salt);
-    
-    
-    
-    /*
-    string fileName = String.Concat("Message.txt");
-
-
-    string docPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-    using (StreamWriter outputFile = new StreamWriter(Path.Combine(String.Concat("Message.txt")), true))
+    try
     {
-        outputFile.WriteLine(hexStringCipher + "," + hexStringNonce + "," +
-                             hexStringTag + "," + hexStringSalt);
-    }
-    
-    File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + @"\" + "Message.txt", 
-        (hexStringCipher + "," + hexStringNonce + "," +  
-                             hexStringTag + "," + hexStringSalt));*/
-    
-    string filePath = "Message.txt";
-    string content = hexStringCipher + "," + hexStringNonce + "," +  
-                    hexStringTag + "," + hexStringSalt;
+        string hexStringCipher = Convert.ToHexString(ciphertext);
+        string hexStringNonce = Convert.ToHexString(nonce);
+        string hexStringTag = Convert.ToHexString(tag);
+        string hexStringSalt = Convert.ToHexString(salt);
 
-    Console.WriteLine(content);
-    
-    File.WriteAllText(filePath, content);
+        string content = hexStringCipher + "," + hexStringNonce + "," +
+                         hexStringTag + "," + hexStringSalt;
+
+        /*
+        //on some systems the program may be unable to write to the file so the encrypted content can be printed.
+        //if you cant write to file out comment this code and paste it into a Message.txt file in this dir
+        //then run decrypt mehod
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine(content);
+        Console.ResetColor();
+        */
+
+
+        string filePath = @".\Message.txt";
+
+        if (!File.Exists(filePath))
+            File.Create(filePath);
+
+        File.SetAttributes(filePath,
+            (new FileInfo(filePath)).Attributes | FileAttributes.Normal);
+
+
+        File.WriteAllText(filePath, content);
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("=============================================");
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Wrote successfully to file.");
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("=============================================");
+        Console.ResetColor();
+
+    }
+    catch (IOException e)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("could not write content to file");
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("=============================================");
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine(e);
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("=============================================");
+        Console.ResetColor();
+    }
 }
 
 /**
@@ -141,22 +183,20 @@ void readFromFile()
         {
             // Read the stream as a string, and write the string to the console.
             output = sr.ReadToEnd();
-            
         }
 
         output.Replace("\r\n", "");
-        
-        
+
+
         string[] list = output.Split(",");
 
         byte[] ciphertext = new byte[] { };
-        byte[] nonce= new byte[] { };
-        byte[] tag= new byte[] { };
-        byte[] salt= new byte[] { };
-        
+        byte[] nonce = new byte[] { };
+        byte[] tag = new byte[] { };
+        byte[] salt = new byte[] { };
+
         for (int i = 0; i <= list.Length; i++)
         {
-
             switch (i)
             {
                 case 0:
@@ -182,9 +222,12 @@ void readFromFile()
 
         if (ciphertext.Length < 5)
         {
+            Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("No data to read");
+            Console.ResetColor();
             return;
         }
+
 
         try
         {
@@ -192,13 +235,21 @@ void readFromFile()
         }
         catch (Exception e)
         {
-            Console.WriteLine("an error accused: " + e);
-            throw;
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("=============================================");
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("could not decrypt file");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("=============================================");
+            Console.ResetColor();
         }
+        
     }
     catch (IOException e)
     {
+        Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine("The file could not be read: \n" + e);
+        Console.ResetColor();
     }
 }
 
@@ -211,7 +262,7 @@ string getPassword()
     bool isGettingPassword = true;
     bool isEnter = false;
     String thePassword = "";
-    
+
     while (isGettingPassword)
     {
         ConsoleKeyInfo key = Console.ReadKey(intercept: true);
@@ -223,12 +274,13 @@ string getPassword()
         {
             isGettingPassword = false;
             break;
-        } else
+        }
+        else
         {
             thePassword += character;
         }
     }
-    
+
     return thePassword;
 }
 
@@ -237,11 +289,13 @@ string getPassword()
  */
 void SoutEcrypted(byte[] encrypted)
 {
-    Console.ForegroundColor = ConsoleColor.Yellow;
     Console.Write("Text Encrypted: ");
-    foreach (var item in encrypted) {
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    foreach (var item in encrypted)
+    {
         Console.Write(item);
     }
+
     Console.WriteLine();
     Console.ResetColor();
 }
@@ -251,8 +305,13 @@ void SoutEcrypted(byte[] encrypted)
  */
 void SoutDecrypted(string decrypted)
 {
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("=============================================");
+    Console.ForegroundColor = ConsoleColor.White;
+    Console.Write("Text Decrypted: ");
     Console.ForegroundColor = ConsoleColor.Blue;
-    Console.WriteLine("Text Decrypted: " + decrypted);
+    Console.WriteLine(decrypted);
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("=============================================");
     Console.ResetColor();
-
 }
